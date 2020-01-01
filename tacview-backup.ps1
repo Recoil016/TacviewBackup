@@ -1,12 +1,12 @@
-﻿#Tacview file backup by M16A3NoRecoilHax#7490 2020-01-01
-#ONLY VERIFIED FOR PS VERSION 5.1
-$version = '2020-01-01'
+﻿#Tacview file backup by M16A3NoRecoilHax#7490
+
+#-----------------------START OF CONFIG-----------------------
 
 #Tacview Directory
-$workingdir = "${env:homepath}\Documents\Tacview\"
+$workingdir = "${HOME}\Documents\Tacview\"
 
 #Log Directory
-$logdir = "${env:homepath}\Documents\Tacview\"
+$logdir = "${HOME}\Documents\Tacview\"
 
 #Timeframe in hours. Files older than $timeframe get deleted, files newer than get uploaded.
 $timeframe = 12
@@ -18,13 +18,23 @@ $pass = 'password'
 
 #------------------------END OF CONFIG------------------------
 
+$version = '2020-01-01'
+
 $credentials = New-Object System.Net.NetworkCredential($user,$pass)
 
 function Get-TimeStamp {
+	$date = Get-Date -Format "yyyy-MM-dd HH:mm:ss K"
+	return $date
+}
 
-    $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss K"  
-    return $date
-    
+function Write-Log{
+	param (
+		[string]$text = $null,
+		[string]$logfile = $stdlogfile,
+		[string]$loglevel = "INFO:"
+	)
+	$logpath = "$logdir$logfile"
+	Write-Output "$(Get-TimeStamp) $loglevel $text" | Out-File -LiteralPath $logpath -Append -Encoding ASCII
 }
 
 Write-Host "$(Get-TimeStamp) Starting cleanup and backup of Tacview files. Script version: $version"
@@ -33,23 +43,23 @@ Write-Host "$(Get-TimeStamp) Starting cleanup and backup of Tacview files. Scrip
 
 #CLEANUP
 Write-Host "`n$(Get-TimeStamp) Cleaning up Tacview files older than $timeframe hours..."
-Write-Output "$(Get-TimeStamp) Starting deletion of files older than $timeframe hours. Script version: $version" | Out-file "$logdir\tacview-delete.log" -append -encoding ASCII
+Write-Log "Starting deletion of files older than $timeframe hours. Script version: $version" -logfile "tacview-delete.log"
 
 #Deletes files (and logs which files were deleted)
 Get-ChildItem -Path "$workingdir" -Recurse -filter "*.acmi" | Where-Object {($_.LastWriteTime-lt (Get-Date).AddHours(-$timeframe))} | ForEach-Object {
 	Remove-Item $_.FullName
 	Write-Host "$(Get-TimeStamp) Deleted: $($_.Name)"
-	Add-Content "$logdir\tacview-delete.log" "$(Get-TimeStamp) Deleted: $($_.Name)"
+	Write-Log "Deleted $($_.Name)" -logfile "tacview-delete.log"
 }
 
 Write-Host "`n$(Get-TimeStamp) Cleanup finished!"
-Write-Output "$(Get-TimeStamp) Cleanup finished." | Out-file "$logdir\tacview-delete.log" -append -encoding ASCII
+Write-Log "Cleanup finished." -logfile "tacview-delete.log"
 
 
 
 #COMPRESSION
 Write-Host "`n$(Get-TimeStamp) Compressing Tacview files newer than $timeframe hours..."
-Write-Output "$(Get-TimeStamp) Starting compression of files newer than $timeframe hours. Script version: $version" | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII
+Write-Log "Starting compression of files newer than $timeframe hours. Script version: $version" -logfile "tacview-compression.log"
 
 #loop for all detected UNCOMPRESSED Tacview files
 foreach($item in (Get-ChildItem $workingdir "*.txt.acmi"))
@@ -58,7 +68,7 @@ foreach($item in (Get-ChildItem $workingdir "*.txt.acmi"))
     $namewoext = $item.Name.Substring(0,$item.Name.Length -9)
 
     Write-Host "`n$(Get-TimeStamp) Found uncompressed file: $namewoext.txt.acmi"
-    Write-Output "$(Get-TimeStamp) Found uncompressed file: $namewoext.txt.acmi" | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII
+    Write-Log "Found uncompressed file: $namewoext.txt.acmi" -logfile "tacview-compression.log"
 
     #get size of uncompressed file
     Write-Host "$(Get-TimeStamp) Checking if file is currently being written..."
@@ -71,29 +81,29 @@ foreach($item in (Get-ChildItem $workingdir "*.txt.acmi"))
     #check if file is being written, abort if yes
     if ($size -ne $size2) {
         Write-Host "$(Get-TimeStamp) File is still being written. Skipping."
-        Write-Output "$(Get-TimeStamp) Skipping $namewoext.txt.acmi: File is being written." | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII
+        Write-Log "Skipping $namewoext.txt.acmi: File is being written." -logfile "tacview-compression.log"
         break
     }
 
     if (!(Test-Path "$workingdir\$namewoext.zip.acmi")) {   
         Write-Host "$(Get-TimeStamp) Compressing $namewoext.txt.acmi"
-        Write-Output "$(Get-TimeStamp) Compressing $namewoext.txt.acmi" | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII     
+        Write-Log "Compressing $namewoext.txt.acmi" -logfile "tacview-compression.log"    
         Compress-Archive -LiteralPath "$workingdir\$namewoext.txt.acmi" -CompressionLevel Optimal -Update -DestinationPath "$workingdir\$namewoext.zip"
         Rename-Item -LiteralPath "$workingdir\$namewoext.zip" -NewName "$namewoext.zip.acmi"
     } else {
         Write-Host "$(Get-TimeStamp) Skipping $namewoext.txt.acmi: Compressed Version already exists!"
-        Write-Output "$(Get-TimeStamp) Skipping $namewoext.txt.acmi: Compressed Version already exists." | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII
+        Write-Log "Skipping $namewoext.txt.acmi: Compressed Version already exists." -logfile "tacview-compression.log"
     }
 }
 
 Write-Host "`n$(Get-TimeStamp) Compression finished!"
-Write-Output "$(Get-TimeStamp) Compression finished." | Out-file "$logdir\tacview-compression.log" -append -encoding ASCII
+Write-Log "Compression finished." -logfile "tacview-compression.log"
 
 
 
 #UPLOAD
 Write-Host "`n$(Get-TimeStamp) Uploading compressed Tacview files newer than $timeframe hours..."
-Write-Output "$(Get-TimeStamp) Starting upload of compressed Tacview files newer than $timeframe hours. Script version: $version" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+Write-Log "Starting upload of compressed Tacview files newer than $timeframe hours. Script version: $version" -logfile "tacview-upload.log"
 
 #variables
 $success = 0
@@ -111,7 +121,7 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
     $request.EnableSsl = $true
 
     Write-Host "`n$(Get-TimeStamp) Current File: $item"
-    Write-Output "$(Get-TimeStamp) Current File: $item" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+    Write-Log "Current File: $item" -logfile "tacview-upload.log"
 
     #repeat request until successful response or 2 tries (5 seconds wait time)
     DO {
@@ -125,11 +135,11 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
             if($response.StatusCode -ne "ActionNotTakenFileUnavailable")
             {
                 if($response.StatusCode -eq "Undefined") {
-                    Write-Host "$(Get-TimeStamp) Error: Undefined Error while checking remote file size!"
-                    Write-Output "$(Get-TimeStamp) Error: Undefined Error while checking remote file size." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+                    Write-Host "$(Get-TimeStamp) ERROR: Undefined error while checking remote file size!"
+                    Write-Log "Undefined error while checking remote file size." -logfile "tacview-upload.log" -loglevel "ERROR:"
                 } else {
-                    Write-Host "$(Get-TimeStamp) Error: $($response.StatusDescription)"
-                    Write-Output "$(Get-TimeStamp) Error: $($response.StatusDescription)" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+                    Write-Host "$(Get-TimeStamp) ERROR: $($response.StatusDescription)"
+                    Write-Log "$($response.StatusDescription)" -logfile "tacview-upload.log" -loglevel "ERROR:"
                 }
             }
             
@@ -158,7 +168,7 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
     $localsize = (Get-Item -Path "$workingdir\$filename").length
 
     #Write file sizes to log
-    Write-Output "$(Get-TimeStamp) Remote: $remoteint Bytes Local: $localsize Bytes" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+    Write-Log "Remote: $remoteint Bytes Local: $localsize Bytes" -logfile "tacview-upload.log"
 
     #start upload if sizes are different
     if($remoteint -ne $localsize){
@@ -181,28 +191,28 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
             $requeststream.Dispose()
 
             Write-Host "$(Get-TimeStamp) Finished upload!"
-            Write-Output "$(Get-TimeStamp) Uploaded file: $item" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+            Write-Log "Uploaded file: $item" -logfile "tacview-upload.log"
 
         #log errors
         } catch {
             $upload--
             
             if($_.Exception.InnerException.Response.StatusCode -eq "Undefined") {
-                Write-Host "$(Get-TimeStamp) Error: Undefined Error when attempting to upload!"
-                Write-Output "$(Get-TimeStamp) Error: Undefined Error when attempting to upload." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+                Write-Host "$(Get-TimeStamp) ERROR: Undefined error when attempting to upload!"
+                Write-Log "Undefined error when attempting to upload." -logfile "tacview-upload.log" -loglevel "ERROR:"
             } else {
-				Write-Host "$(Get-TimeStamp) Error: $($_.Exception.InnerException.Response.StatusDescription)"
-				Write-Output "$(Get-TimeStamp) Error: $($_.Exception.InnerException.Response.StatusDescription)" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+				Write-Host "$(Get-TimeStamp) ERROR: $($_.Exception.InnerException.Response.StatusDescription)"
+				Write-Log "$($_.Exception.InnerException.Response.StatusDescription)" -logfile "tacview-upload.log" -loglevel "ERROR:"
             }
         }
     #log if sizes are equal
     } else {
         Write-Host "$(Get-TimeStamp) File skipped, same version already archived!"
-        Write-Output "$(Get-TimeStamp) $item skipped, same version already archived!" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+        Write-Log "$item skipped, same version already archived!" -logfile "tacview-upload.log"
     }
 }
 
 Write-Host "`n$(Get-TimeStamp) Upload finished. $upload file(s) uploaded!"
-Write-Output "$(Get-TimeStamp) Upload finished. $upload file(s) uploaded." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+Write-Log "Upload finished. $upload file(s) uploaded." -logfile "tacview-upload.log"
 Start-Sleep 2
 #Pause
