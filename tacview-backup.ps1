@@ -35,12 +35,12 @@ Write-Host "$(Get-TimeStamp) Starting cleanup and backup of Tacview files. Scrip
 Write-Host "`n$(Get-TimeStamp) Cleaning up Tacview files older than $timeframe hours..."
 Write-Output "$(Get-TimeStamp) Starting deletion of files older than $timeframe hours. Script version: $version" | Out-file "$logdir\tacview-delete.log" -append -encoding ASCII
 
-#logs deleted files
-Write-Output "$(Get-TimeStamp) Files deleted:" | Out-file "$logdir\tacview-delete.log" -append -encoding ASCII
-Get-ChildItem -Path "$workingdir" -Recurse -filter "*.acmi" | Where-Object {($_.LastWriteTime-lt (Get-Date).AddHours(-$timeframe))} | Add-Content "$logdir\tacview-delete.log"
-
-#deletes files
-Get-ChildItem -Path "$workingdir" -Recurse -filter "*.acmi" | Where-Object {($_.LastWriteTime-lt (Get-Date).AddHours(-$timeframe))} | Remove-Item
+#Deletes files (and logs which files were deleted)
+Get-ChildItem -Path "$workingdir" -Recurse -filter "*.acmi" | Where-Object {($_.LastWriteTime-lt (Get-Date).AddHours(-$timeframe))} | ForEach-Object {
+	Remove-Item $_.FullName
+	Write-Host "$(Get-TimeStamp) Deleted: $($_.Name)"
+	Add-Content "$logdir\tacview-delete.log" "$(Get-TimeStamp) Deleted: $($_.Name)"
+}
 
 Write-Host "`n$(Get-TimeStamp) Cleanup finished!"
 Write-Output "$(Get-TimeStamp) Cleanup finished." | Out-file "$logdir\tacview-delete.log" -append -encoding ASCII
