@@ -187,7 +187,7 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
         } catch {
             $upload--
             
-            if($response.StatusCode -eq "Undefined") {
+            if($_.Exception.InnerException.Response.StatusCode -eq "Undefined") {
                 Write-Host "$(Get-TimeStamp) Error: Undefined Error when attempting to upload!"
                 Write-Output "$(Get-TimeStamp) Error: Undefined Error when attempting to upload." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
             } else {
