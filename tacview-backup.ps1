@@ -16,7 +16,9 @@ $ftp = 'ftp://ftp.example.asdf/backupdirectory/'
 $user = 'username'
 $pass = 'password'
 
-#-------------------------------------------------------------
+#------------------------END OF CONFIG------------------------
+
+$credentials = New-Object System.Net.NetworkCredential($user,$pass)
 
 function Get-TimeStamp {
 
@@ -104,9 +106,9 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
     #request file size of remote file
     $url = "$ftp$item"
     $request = [Net.WebRequest]::Create($url)
-    $request.Credentials = New-Object System.Net.NetworkCredential($user,$pass);
+    $request.Credentials = $credentials
     $request.Method = [System.Net.WebRequestMethods+Ftp]::GetFileSize
-    #$request.UseBinary
+    $request.EnableSsl = $true
 
     Write-Host "`n$(Get-TimeStamp) Current File: $item"
     Write-Output "$(Get-TimeStamp) Current File: $item" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
@@ -123,8 +125,8 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
             if($response.StatusCode -ne "ActionNotTakenFileUnavailable")
             {
                 if($response.StatusCode -eq "Undefined") {
-                    Write-Host "$(Get-TimeStamp) Error: Undefined Error while checking remote file size"
-                    Write-Output "$(Get-TimeStamp) Error: Undefined Error while checking remote file size" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+                    Write-Host "$(Get-TimeStamp) Error: Undefined Error while checking remote file size!"
+                    Write-Output "$(Get-TimeStamp) Error: Undefined Error while checking remote file size." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
                 } else {
                     Write-Host "$(Get-TimeStamp) Error: $($response.StatusDescription)"
                     Write-Output "$(Get-TimeStamp) Error: $($response.StatusDescription)" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
@@ -165,21 +167,33 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
         try {
             $upload++ 
 
-            $uri = New-Object System.Uri($ftp+$filename)
+            $request = [System.Net.WebRequest]::Create($url)
+            $request.Credentials = $credentials
+            $request.Method = [System.Net.WebRequestMethods+Ftp]::UploadFile
+            $request.EnableSsl = $true
 
-            $webclient = New-Object System.Net.WebClient 
-            $webclient.Credentials = New-Object System.Net.NetworkCredential($user,$pass)
-            $webclient.UploadFile($uri, $item.FullName)
+            $content = [System.IO.File]::ReadAllBytes("$workingdir\$filename")
+            $request.ContentLength = $content.Length
+            
+            $requeststream = $request.GetRequestStream()
+            $requeststream.Write($content,0,$content.Length)
+            $requeststream.Close()
+            $requeststream.Dispose()
 
             Write-Host "$(Get-TimeStamp) Finished upload!"
             Write-Output "$(Get-TimeStamp) Uploaded file: $item" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
 
         #log errors
-        } catch [Exception] {
+        } catch {
             $upload--
             
-            Write-Host "$(Get-TimeStamp) Error: $($_.Exception.Message)"
-            Write-Output "$(Get-TimeStamp) Error: $_" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+            if($response.StatusCode -eq "Undefined") {
+                Write-Host "$(Get-TimeStamp) Error: Undefined Error when attempting to upload!"
+                Write-Output "$(Get-TimeStamp) Error: Undefined Error when attempting to upload." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+            } else {
+				Write-Host "$(Get-TimeStamp) Error: $($_.Exception.InnerException.Response.StatusDescription)"
+				Write-Output "$(Get-TimeStamp) Error: $($_.Exception.InnerException.Response.StatusDescription)" | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
+            }
         }
     #log if sizes are equal
     } else {
@@ -190,5 +204,5 @@ foreach($item in (Get-ChildItem $workingdir "*.zip.acmi"))
 
 Write-Host "`n$(Get-TimeStamp) Upload finished. $upload file(s) uploaded!"
 Write-Output "$(Get-TimeStamp) Upload finished. $upload file(s) uploaded." | Out-file "$logdir\tacview-upload.log" -append -encoding ASCII
-Start-Sleep 3
+Start-Sleep 2
 #Pause
