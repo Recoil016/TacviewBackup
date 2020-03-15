@@ -18,7 +18,7 @@ $pass = 'password'
 
 #------------------------END OF CONFIG------------------------
 
-$version = '2020-01-01'
+$version = 'v0.6.3'
 
 $credentials = New-Object System.Net.NetworkCredential($user,$pass)
 
