@@ -12,13 +12,15 @@ $logdir = "${HOME}\Documents\Tacview\"
 $timeframe = 12
 
 #FTP credentials
-$ftp = 'ftp://ftp.example.asdf/backupdirectory/'
-$user = 'username'
-$pass = 'password'
+$ftp = "ftp://ftp.example.asdf/backupdirectory/"
+$user = "username"
+#PASSWORD STORED IN SEPARATE FILE
 
 #------------------------END OF CONFIG------------------------
 
-$version = 'v0.6.3'
+$version = "v0.7.0"
+
+$pass = (Get-Content -Path "$PSScriptRoot\ftppassword" | ConvertTo-SecureString)
 
 $credentials = New-Object System.Net.NetworkCredential($user,$pass)
 
